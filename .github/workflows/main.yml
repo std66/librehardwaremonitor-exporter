@@ -1,0 +1,53 @@
+name: Build and Release .NET 8 Console App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Manuális futtatás támogatása
+
+jobs:
+  build:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish (Windows)
+        run: dotnet publish -c Release -r win-x64 --self-contained -o publish/win
+
+      - name: Publish (Linux)
+        run: dotnet publish -c Release -r linux-x64 --self-contained -o publish/linux
+
+      - name: Zip published outputs
+        run: |
+          zip -r publish-win-x64.zip publish/win
+          zip -r publish-linux-x64.zip publish/linux
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          body: "Automatikusan generált release a main branch push alapján."
+          draft: false
+          prerelease: false
+          files: |
+            publish-win-x64.zip
+            publish-linux-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
